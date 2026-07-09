@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# database (SQLite file + WAL sidecars) — back it up separately via the app
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
+server/data/backups/
+
+# backups e relatórios exportados (contêm dados reais — nunca versionar)
+scratch_out/
+tonertrack-*.db
+tonertrack-*.xlsx
+tonertrack-*.pdf
+
+# env / local config
+.env
+.env.local
+.claude/settings.local.json
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*

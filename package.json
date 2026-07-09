@@ -1,0 +1,46 @@
+{
+  "name": "tonertrack",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Controle de consumo de toner e cilindros de impressoras",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "cross-env NODE_ENV=development PORT=3001 node --watch --disable-warning=ExperimentalWarning server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "seed": "node --disable-warning=ExperimentalWarning server/seed.js",
+    "seed:reset": "node --disable-warning=ExperimentalWarning server/seed.js --reset",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.51.23",
+    "cors": "^2.8.5",
+    "date-fns": "^3.6.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "lucide-react": "^0.427.0",
+    "pdfkit": "^0.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.1",
+    "recharts": "^2.12.7",
+    "sonner": "^1.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "clsx": "^2.1.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
+    "postcss": "^8.4.41",
+    "tailwind-merge": "^2.5.2",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.1"
+  }
+}

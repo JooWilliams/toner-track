@@ -1,0 +1,134 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 33% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 96%;
+    --secondary-foreground: 222 47% 20%;
+
+    --muted: 220 20% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 20% 95%;
+    --accent-foreground: 222 47% 20%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 34%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 152 55% 94%;
+
+    --warning: 32 95% 42%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 45 96% 91%;
+
+    --danger: 0 72% 51%;
+    --danger-foreground: 0 0% 100%;
+    --danger-soft: 0 86% 96%;
+
+    --border: 220 16% 90%;
+    --input: 220 16% 88%;
+    --ring: 243 75% 59%;
+
+    /* Sidebar is a persistent dark surface in both themes */
+    --sidebar: 231 32% 12%;
+    --sidebar-foreground: 220 22% 92%;
+    --sidebar-muted: 222 14% 60%;
+    --sidebar-accent: 243 75% 62%;
+    --sidebar-border: 230 24% 20%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 229 30% 8%;
+    --foreground: 220 22% 92%;
+
+    --card: 229 27% 12%;
+    --card-foreground: 220 22% 92%;
+
+    --popover: 229 27% 12%;
+    --popover-foreground: 220 22% 92%;
+
+    --primary: 243 80% 68%;
+    --primary-foreground: 229 40% 10%;
+
+    --secondary: 229 20% 18%;
+    --secondary-foreground: 220 22% 92%;
+
+    --muted: 229 20% 18%;
+    --muted-foreground: 220 12% 62%;
+
+    --accent: 229 20% 20%;
+    --accent-foreground: 220 22% 92%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 58% 52%;
+    --success-foreground: 229 40% 10%;
+    --success-soft: 158 42% 16%;
+
+    --warning: 38 92% 56%;
+    --warning-foreground: 229 40% 10%;
+    --warning-soft: 33 55% 17%;
+
+    --danger: 0 74% 62%;
+    --danger-foreground: 229 40% 10%;
+    --danger-soft: 0 45% 19%;
+
+    --border: 229 20% 21%;
+    --input: 229 20% 24%;
+    --ring: 243 80% 68%;
+
+    --sidebar: 231 34% 10%;
+    --sidebar-foreground: 220 22% 92%;
+    --sidebar-muted: 222 14% 58%;
+    --sidebar-accent: 243 80% 66%;
+    --sidebar-border: 230 24% 18%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Slimmer, themed scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+}
