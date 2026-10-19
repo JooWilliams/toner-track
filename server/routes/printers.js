@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../db.js";
 import { h, HttpError, emptyToNull } from "../lib/http.js";
+import { recordAudit, withTransaction } from "../lib/audit.js";
 
 const router = Router();
 
@@ -17,7 +18,8 @@ const LIST_SQL = (where) => `
   SELECT p.*,
     (SELECT COUNT(*) FROM changes c WHERE c.printer_id = p.id AND c.type = 'toner')    AS toner_changes,
     (SELECT COUNT(*) FROM changes c WHERE c.printer_id = p.id AND c.type = 'cilindro') AS drum_changes,
-    (SELECT MAX(c.page_count) FROM changes c WHERE c.printer_id = p.id)                AS last_count,
+    (SELECT c.page_count FROM changes c WHERE c.printer_id = p.id
+     ORDER BY c.change_date DESC, c.id DESC LIMIT 1)                                   AS last_count,
     (SELECT MAX(c.change_date) FROM changes c WHERE c.printer_id = p.id)               AS last_change_date
   FROM printers p
   ${where}
@@ -58,19 +60,24 @@ router.post(
   h((req, res) => {
     const name = emptyToNull(req.body?.name);
     if (!name) throw new HttpError(400, "O nome da impressora é obrigatório.");
-    const info = db
-      .prepare(
-        `INSERT INTO printers (name, location, model, expected_toner_yield, expected_drum_yield)
-         VALUES (?, ?, ?, ?, ?)`
-      )
-      .run(
-        name,
-        emptyToNull(req.body?.location),
-        emptyToNull(req.body?.model),
-        parseYield(req.body?.expected_toner_yield),
-        parseYield(req.body?.expected_drum_yield)
-      );
-    res.status(201).json(db.prepare("SELECT * FROM printers WHERE id = ?").get(info.lastInsertRowid));
+    const printer = withTransaction(() => {
+      const info = db
+        .prepare(
+          `INSERT INTO printers (name, location, model, expected_toner_yield, expected_drum_yield)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .run(
+          name,
+          emptyToNull(req.body?.location),
+          emptyToNull(req.body?.model),
+          parseYield(req.body?.expected_toner_yield),
+          parseYield(req.body?.expected_drum_yield)
+        );
+      const created = db.prepare("SELECT * FROM printers WHERE id = ?").get(info.lastInsertRowid);
+      recordAudit(req.authUser, "create", "printer", created.id, null, created);
+      return created;
+    });
+    res.status(201).json(printer);
   })
 );
 
@@ -85,24 +92,29 @@ router.put(
     const name = req.body?.name !== undefined ? emptyToNull(req.body.name) : existing.name;
     if (!name) throw new HttpError(400, "O nome da impressora é obrigatório.");
 
-    db.prepare(
-      `UPDATE printers
-       SET name = ?, location = ?, model = ?, expected_toner_yield = ?, expected_drum_yield = ?,
-           updated_at = datetime('now')
-       WHERE id = ?`
-    ).run(
-      name,
-      req.body?.location !== undefined ? emptyToNull(req.body.location) : existing.location,
-      req.body?.model !== undefined ? emptyToNull(req.body.model) : existing.model,
-      req.body?.expected_toner_yield !== undefined
-        ? parseYield(req.body.expected_toner_yield)
-        : existing.expected_toner_yield,
-      req.body?.expected_drum_yield !== undefined
-        ? parseYield(req.body.expected_drum_yield)
-        : existing.expected_drum_yield,
-      id
-    );
-    res.json(db.prepare("SELECT * FROM printers WHERE id = ?").get(id));
+    const updated = withTransaction(() => {
+      db.prepare(
+        `UPDATE printers
+         SET name = ?, location = ?, model = ?, expected_toner_yield = ?, expected_drum_yield = ?,
+             updated_at = datetime('now')
+         WHERE id = ?`
+      ).run(
+        name,
+        req.body?.location !== undefined ? emptyToNull(req.body.location) : existing.location,
+        req.body?.model !== undefined ? emptyToNull(req.body.model) : existing.model,
+        req.body?.expected_toner_yield !== undefined
+          ? parseYield(req.body.expected_toner_yield)
+          : existing.expected_toner_yield,
+        req.body?.expected_drum_yield !== undefined
+          ? parseYield(req.body.expected_drum_yield)
+          : existing.expected_drum_yield,
+        id
+      );
+      const printer = db.prepare("SELECT * FROM printers WHERE id = ?").get(id);
+      recordAudit(req.authUser, "update", "printer", id, existing, printer);
+      return printer;
+    });
+    res.json(updated);
   })
 );
 
@@ -110,8 +122,17 @@ router.put(
 router.delete(
   "/:id",
   h((req, res) => {
-    const info = db.prepare("DELETE FROM printers WHERE id = ?").run(Number(req.params.id));
-    if (!info.changes) throw new HttpError(404, "Impressora não encontrada.");
+    const id = Number(req.params.id);
+    const printer = db.prepare("SELECT * FROM printers WHERE id = ?").get(id);
+    if (!printer) throw new HttpError(404, "Impressora não encontrada.");
+    withTransaction(() => {
+      const changes = db.prepare("SELECT * FROM changes WHERE printer_id = ?").all(id);
+      for (const change of changes) {
+        recordAudit(req.authUser, "delete", "change", change.id, change, null);
+      }
+      db.prepare("DELETE FROM printers WHERE id = ?").run(id);
+      recordAudit(req.authUser, "delete", "printer", id, printer, null);
+    });
     res.status(204).end();
   })
 );

@@ -1,13 +1,15 @@
 import { NavLink } from "react-router-dom";
-import { FileText, History, LayoutGrid, Printer, Replace } from "lucide-react";
+import { FileText, History, LayoutGrid, LogOut, Printer, Replace, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "./AuthGate";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutGrid, end: true },
   { to: "/impressoras", label: "Impressoras", icon: Printer },
   { to: "/registrar", label: "Registrar troca", icon: Replace },
   { to: "/historico", label: "Histórico", icon: History },
+  { to: "/auditoria", label: "Auditoria", icon: ScrollText },
   { to: "/relatorios", label: "Relatórios", icon: FileText },
 ];
 
@@ -26,6 +28,8 @@ export function SidebarBrand() {
 }
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+  const { username, logout } = useAuth();
+
   return (
     <>
       {mobileOpen && (
@@ -63,6 +67,17 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
         <div className="mt-auto space-y-3 border-t border-sidebar-border p-4">
           <ThemeToggle />
+          <div className="flex items-center justify-between gap-2 px-1 text-xs text-sidebar-muted">
+            <span className="truncate">Conectado como {username}</span>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              aria-label="Sair"
+              className="rounded p-1 hover:bg-white/10 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
           <div className="flex items-center gap-2 px-1 text-xs text-sidebar-muted">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-400 opacity-75" />

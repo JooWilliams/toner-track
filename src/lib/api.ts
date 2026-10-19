@@ -6,6 +6,9 @@ import type {
   Printer,
   PrinterInput,
   PrinterStat,
+  AuditEntry,
+  AuthStatus,
+  PageResult,
 } from "./types";
 
 export function qs(params: Record<string, string | undefined>): string {
@@ -34,6 +37,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  auth: {
+    status: () => request<AuthStatus>("/auth/status"),
+    setup: (data: { username: string; password: string }) =>
+      request<{ username: string }>("/auth/setup", { method: "POST", body: JSON.stringify(data) }),
+    login: (data: { username: string; password: string }) =>
+      request<{ username: string }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+    logout: () => request<void>("/auth/logout", { method: "POST" }),
+  },
   printers: {
     list: (q?: string) => request<Printer[]>(`/printers${q ? `?q=${encodeURIComponent(q)}` : ""}`),
     create: (data: PrinterInput) =>
@@ -43,7 +54,8 @@ export const api = {
     remove: (id: number) => request<void>(`/printers/${id}`, { method: "DELETE" }),
   },
   changes: {
-    list: (filters: ChangeFilters = {}) => request<Change[]>(`/changes${qs(filters)}`),
+    list: (filters: ChangeFilters = {}, limit = 50, offset = 0) =>
+      request<PageResult<Change>>(`/changes${qs({ ...filters, limit: String(limit), offset: String(offset) })}`),
     recent: (limit = 8) => request<Change[]>(`/changes/recent?limit=${limit}`),
     create: (data: ChangeInput) =>
       request<Change>("/changes", { method: "POST", body: JSON.stringify(data) }),
@@ -53,6 +65,9 @@ export const api = {
   },
   dashboard: () => request<DashboardData>("/dashboard"),
   printerStats: () => request<PrinterStat[]>("/stats/printers"),
+  audit: (limit = 50, offset = 0) =>
+    request<PageResult<AuditEntry>>(`/audit${qs({ limit: String(limit), offset: String(offset) })}`),
+  backupStatus: () => request<{ last_backup_at: string | null }>("/backup/status"),
 };
 
 export const reportUrl = (kind: "excel" | "pdf", filters?: ChangeFilters) =>

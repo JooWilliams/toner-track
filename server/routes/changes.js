@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { db } from "../db.js";
 import { h, HttpError, emptyToNull } from "../lib/http.js";
-import { fetchEnrichedChanges, fetchEnrichedChangeById } from "../lib/enriched.js";
+import {
+  countEnrichedChanges,
+  fetchEnrichedChanges,
+  fetchEnrichedChangeById,
+} from "../lib/enriched.js";
+import { recordAudit, withTransaction } from "../lib/audit.js";
+import { parsePagination } from "../lib/pagination.js";
 
 const router = Router();
 
@@ -23,6 +29,10 @@ function validateBody(body, { partial = false } = {}) {
   if (!partial || body.change_date !== undefined) {
     const d = (body.change_date || "").toString().slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new HttpError(400, "Data da troca inválida.");
+    const parsed = new Date(`${d}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== d) {
+      throw new HttpError(400, "Data da troca inválida.");
+    }
     out.change_date = d;
   }
   if (!partial || body.page_count !== undefined) {
@@ -40,7 +50,14 @@ router.get(
   "/",
   h((req, res) => {
     const { printerId, type, from, to, responsible } = req.query;
-    res.json(fetchEnrichedChanges({ printerId, type, from, to, responsible }));
+    const filters = { printerId, type, from, to, responsible };
+    const { limit, offset } = parsePagination(req.query);
+    res.json({
+      items: fetchEnrichedChanges({ ...filters, limit, offset }),
+      total: countEnrichedChanges(filters),
+      limit,
+      offset,
+    });
   })
 );
 
@@ -68,13 +85,18 @@ router.post(
   "/",
   h((req, res) => {
     const v = validateBody(req.body || {});
-    const info = db
-      .prepare(
-        `INSERT INTO changes (printer_id, type, change_date, page_count, responsible, notes)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(v.printer_id, v.type, v.change_date, v.page_count, v.responsible, v.notes);
-    res.status(201).json(fetchEnrichedChangeById(info.lastInsertRowid));
+    const created = withTransaction(() => {
+      const info = db
+        .prepare(
+          `INSERT INTO changes (printer_id, type, change_date, page_count, responsible, notes)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(v.printer_id, v.type, v.change_date, v.page_count, v.responsible, v.notes);
+      const change = fetchEnrichedChangeById(info.lastInsertRowid);
+      recordAudit(req.authUser, "create", "change", change.id, null, change);
+      return change;
+    });
+    res.status(201).json(created);
   })
 );
 
@@ -86,13 +108,19 @@ router.put(
     const existing = db.prepare("SELECT * FROM changes WHERE id = ?").get(id);
     if (!existing) throw new HttpError(404, "Troca não encontrada.");
     const v = validateBody({ ...existing, ...req.body });
-    db.prepare(
-      `UPDATE changes
-       SET printer_id = ?, type = ?, change_date = ?, page_count = ?, responsible = ?, notes = ?,
-           updated_at = datetime('now')
-       WHERE id = ?`
-    ).run(v.printer_id, v.type, v.change_date, v.page_count, v.responsible, v.notes, id);
-    res.json(fetchEnrichedChangeById(id));
+    const before = fetchEnrichedChangeById(id);
+    const updated = withTransaction(() => {
+      db.prepare(
+        `UPDATE changes
+         SET printer_id = ?, type = ?, change_date = ?, page_count = ?, responsible = ?, notes = ?,
+             updated_at = datetime('now')
+         WHERE id = ?`
+      ).run(v.printer_id, v.type, v.change_date, v.page_count, v.responsible, v.notes, id);
+      const change = fetchEnrichedChangeById(id);
+      recordAudit(req.authUser, "update", "change", id, before, change);
+      return change;
+    });
+    res.json(updated);
   })
 );
 
@@ -100,8 +128,13 @@ router.put(
 router.delete(
   "/:id",
   h((req, res) => {
-    const info = db.prepare("DELETE FROM changes WHERE id = ?").run(Number(req.params.id));
-    if (!info.changes) throw new HttpError(404, "Troca não encontrada.");
+    const id = Number(req.params.id);
+    const before = fetchEnrichedChangeById(id);
+    if (!before) throw new HttpError(404, "Troca não encontrada.");
+    withTransaction(() => {
+      db.prepare("DELETE FROM changes WHERE id = ?").run(id);
+      recordAudit(req.authUser, "delete", "change", id, before, null);
+    });
     res.status(204).end();
   })
 );

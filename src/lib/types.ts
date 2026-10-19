@@ -33,6 +33,7 @@ export interface Change {
   change_date: string;
   page_count: number;
   prev_count: number | null;
+  pages_printed: number | null;
   pages_used: number | null;
   expected_yield: number | null;
   responsible: string | null;
@@ -40,6 +41,30 @@ export interface Change {
   status: YieldStatus;
   created_at: string;
   updated_at: string;
+}
+
+export interface PageResult<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AuditEntry {
+  id: number;
+  actor: string;
+  action: string;
+  entity: string;
+  entity_id: number | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface AuthStatus {
+  configured: boolean;
+  authenticated: boolean;
+  username?: string | null;
 }
 
 export interface SeriesPoint {

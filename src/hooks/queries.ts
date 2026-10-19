@@ -7,6 +7,7 @@ export const qk = {
   dashboard: ["dashboard"] as const,
   printerStats: ["printerStats"] as const,
   changes: (f: ChangeFilters) => ["changes", f] as const,
+  changesPage: (f: ChangeFilters, limit: number, offset: number) => ["changes", f, limit, offset] as const,
   recent: (limit: number) => ["recentChanges", limit] as const,
 };
 
@@ -22,8 +23,12 @@ export function usePrinterStats() {
   return useQuery({ queryKey: qk.printerStats, queryFn: api.printerStats });
 }
 
-export function useChanges(filters: ChangeFilters) {
-  return useQuery({ queryKey: qk.changes(filters), queryFn: () => api.changes.list(filters) });
+export function useChanges(filters: ChangeFilters, limit = 50, offset = 0) {
+  return useQuery({
+    queryKey: qk.changesPage(filters, limit, offset),
+    queryFn: () => api.changes.list(filters, limit, offset),
+    placeholderData: (previous) => previous,
+  });
 }
 
 export function useRecentChanges(limit = 8) {
