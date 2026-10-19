@@ -1,5 +1,7 @@
 import type * as React from "react";
 import { DatabaseBackup, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { usePrinterStats } from "@/hooks/queries";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -7,8 +9,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingBlock } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { backupUrl, reportUrl } from "@/lib/api";
-import { formatNumber } from "@/lib/format";
+import { api, backupUrl, reportUrl } from "@/lib/api";
+import { formatNumber, formatTimestampBR } from "@/lib/format";
 
 function download(url: string) {
   const a = document.createElement("a");
@@ -48,6 +50,39 @@ function ExportCard({ icon: Icon, tone, title, description, cta, onClick }: Expo
 
 export default function Reports() {
   const { data: stats = [], isLoading } = usePrinterStats();
+  const { data: backupStatus, refetch: refreshBackupStatus } = useQuery({
+    queryKey: ["backupStatus"],
+    queryFn: api.backupStatus,
+  });
+
+  async function downloadBackup() {
+    try {
+      const response = await fetch(backupUrl());
+      if (!response.ok) {
+        let message = `Erro ${response.status}`;
+        try {
+          const body = await response.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // A resposta pode não ser JSON quando o servidor falha.
+        }
+        throw new Error(message);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `tonertrack-backup-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.db`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      await refreshBackupStatus();
+      toast.success("Backup do banco gerado.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
 
   return (
     <div>
@@ -74,9 +109,9 @@ export default function Reports() {
           icon={DatabaseBackup}
           tone="text-indigo-600 dark:text-indigo-400"
           title="Backup do banco"
-          description="Baixe uma cópia completa do banco de dados (.db). Guarde em local seguro para restaurar quando precisar."
+          description={`Baixe uma cópia consistente do banco (.db). Último backup: ${backupStatus?.last_backup_at ? formatTimestampBR(backupStatus.last_backup_at) : "nunca"}.`}
           cta="Baixar backup"
-          onClick={() => download(backupUrl())}
+          onClick={() => void downloadBackup()}
         />
       </div>
 
