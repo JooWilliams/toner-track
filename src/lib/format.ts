@@ -10,6 +10,20 @@ export function formatDateBR(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
+export function formatTimestampBR(timestamp: string | null | undefined): string {
+  if (!timestamp) return "—";
+  const normalized = timestamp.includes("T") ? timestamp : `${timestamp.replace(" ", "T")}Z`;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function todayISO(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
