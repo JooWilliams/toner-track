@@ -12,11 +12,12 @@
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
     "seed": "node --disable-warning=ExperimentalWarning server/seed.js",
     "seed:reset": "node --disable-warning=ExperimentalWarning server/seed.js --reset",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "backup:verify": "node --disable-warning=ExperimentalWarning server/verify-backup.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.23",
-    "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "exceljs": "^4.4.0",
     "express": "^4.19.2",

@@ -5,10 +5,14 @@ node_modules/
 dist/
 
 # database (SQLite file + WAL sidecars) — back it up separately via the app
-server/data/*.db
-server/data/*.db-shm
-server/data/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
 server/data/backups/
+backups/
 
 # backups e relatórios exportados (contêm dados reais — nunca versionar)
 scratch_out/
@@ -19,6 +23,8 @@ tonertrack-*.pdf
 # env / local config
 .env
 .env.local
+.env.*
+!.env.example
 .claude/settings.local.json
 
 # editor / OS
