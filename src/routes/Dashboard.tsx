@@ -66,6 +66,9 @@ export default function Dashboard() {
         <StatCard icon={TrendingUp} tone="rose" label="Média p/ cilindro" value={formatNumber(t.avg_pages_drum)} hint="páginas" />
         <StatCard icon={Printer} tone="slate" label="Impressoras" value={formatNumber(t.printers_count)} />
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Páginas impressas são calculadas entre leituras consecutivas do contador de cada impressora; reinícios iniciam uma nova base.
+      </p>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Highlight

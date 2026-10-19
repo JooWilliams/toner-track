@@ -25,8 +25,7 @@ export function computePrinterStats() {
       avg_drum: 0,
       _tonerUsed: [],
       _drumUsed: [],
-      _min: null,
-      _max: null,
+      _pages: 0,
     });
   }
 
@@ -40,8 +39,7 @@ export function computePrinterStats() {
       b.cilindros++;
       if (c.pages_used != null) b._drumUsed.push(c.pages_used);
     }
-    b._min = b._min == null ? c.page_count : Math.min(b._min, c.page_count);
-    b._max = b._max == null ? c.page_count : Math.max(b._max, c.page_count);
+    b._pages += c.pages_printed ?? 0;
   }
 
   return [...byPrinter.values()].map((b) => ({
@@ -53,7 +51,7 @@ export function computePrinterStats() {
     expected_drum_yield: b.expected_drum_yield,
     toners: b.toners,
     cilindros: b.cilindros,
-    pages: b._max != null ? b._max - b._min : 0,
+    pages: b._pages,
     avg_toner: avg(b._tonerUsed),
     avg_drum: avg(b._drumUsed),
   }));
@@ -64,27 +62,24 @@ export function computeSummary() {
   const printers_count = db.prepare("SELECT COUNT(*) n FROM printers").get().n;
   const toners_replaced = db.prepare("SELECT COUNT(*) n FROM changes WHERE type='toner'").get().n;
   const drums_replaced = db.prepare("SELECT COUNT(*) n FROM changes WHERE type='cilindro'").get().n;
-  const pages_printed = db
-    .prepare(
-      `SELECT IFNULL(SUM(mx - mn), 0) total FROM (
-         SELECT MAX(page_count) mx, MIN(page_count) mn FROM changes GROUP BY printer_id
-       )`
-    )
-    .get().total;
-
   const all = fetchEnrichedChanges({});
+  const pages_printed = all.reduce((total, change) => total + (change.pages_printed ?? 0), 0);
+  const pagesByPrinter = new Map();
+  for (const change of all) {
+    if (change.pages_printed != null) {
+      pagesByPrinter.set(change.printer_id, (pagesByPrinter.get(change.printer_id) || 0) + change.pages_printed);
+    }
+  }
   const tonerUsed = all.filter((c) => c.type === "toner" && c.pages_used != null).map((c) => c.pages_used);
   const drumUsed = all.filter((c) => c.type === "cilindro" && c.pages_used != null).map((c) => c.pages_used);
 
-  const top_volume_printer = db
-    .prepare(
-      `SELECT p.name, (MAX(c.page_count) - MIN(c.page_count)) pages
-       FROM changes c JOIN printers p ON p.id = c.printer_id
-       GROUP BY c.printer_id
-       HAVING pages > 0
-       ORDER BY pages DESC LIMIT 1`
-    )
-    .get();
+  const topVolume = [...pagesByPrinter.entries()].filter(([, pages]) => pages > 0).sort((a, b) => b[1] - a[1])[0];
+  const top_volume_printer = topVolume
+    ? {
+        name: db.prepare("SELECT name FROM printers WHERE id = ?").get(topVolume[0]).name,
+        pages: topVolume[1],
+      }
+    : null;
 
   const top_toner_printer = db
     .prepare(
@@ -103,7 +98,7 @@ export function computeSummary() {
     pages_printed,
     avg_pages_toner: avg(tonerUsed),
     avg_pages_drum: avg(drumUsed),
-    top_volume_printer: top_volume_printer || null,
+    top_volume_printer,
     top_toner_printer: top_toner_printer || null,
   };
 }
@@ -127,13 +122,13 @@ export function computeSeries() {
     const y = c.change_date.slice(0, 4);
     if (mAgg.has(ym)) {
       const m = mAgg.get(ym);
-      if (c.pages_used) m.paginas += c.pages_used;
+      m.paginas += c.pages_printed ?? 0;
       if (c.type === "toner") m.toners++;
       else m.cilindros++;
     }
     if (!yAgg.has(y)) yAgg.set(y, { paginas: 0, toners: 0, cilindros: 0 });
     const ya = yAgg.get(y);
-    if (c.pages_used) ya.paginas += c.pages_used;
+    ya.paginas += c.pages_printed ?? 0;
     if (c.type === "toner") ya.toners++;
     else ya.cilindros++;
   }
